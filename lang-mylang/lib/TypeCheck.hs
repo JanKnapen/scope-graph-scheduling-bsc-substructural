@@ -1,6 +1,6 @@
 module TypeCheck where
 
-import Data.Functor
+-- import Data.Functor
 import Data.Regex
 
 import Free
@@ -16,18 +16,23 @@ import Syntax
 data Label
   = P -- Lexical Parent Label
   | D -- Declaration
+  | U -- Variable Usage
   deriving (Show, Eq)
 
 data Decl
-  = Decl String Type   -- Variable declaration
+  = Decl String Type          -- Variable declaration
+  | AffineDecl Sc String Type -- Affine Variable declaration
+  | UsageDecl
   deriving (Eq)
 
 
 instance Show Decl where
   show (Decl x t) = x ++ " : " ++ show t
+  show (AffineDecl s x t) = "Affine with scope (" ++ show s ++ ") " ++ x ++ " : " ++ show t
+  show UsageDecl = "Usage"
 
-projTy :: Decl -> Type
-projTy (Decl _ t) = t
+-- projTy :: Decl -> Type
+-- projTy (Decl _ t) = t
 
 -- Scope Graph Library Convenience
 edge :: Scope Sc Label Decl < f => Sc -> Label -> Sc -> Free f ()
@@ -43,6 +48,9 @@ sink = S.sink @_ @Label @Decl
 re :: RE Label
 re = Dot (Star $ Atom P) $ Atom D
 
+reU :: RE Label
+reU = Atom U
+
 -- Path order based on length
 pShortest :: PathOrder Label Decl
 pShortest p1 p2 = lenRPath p1 < lenRPath p2
@@ -50,6 +58,12 @@ pShortest p1 p2 = lenRPath p1 < lenRPath p2
 -- Match declaration with particular name
 matchDecl :: String -> Decl -> Bool
 matchDecl x (Decl x' _) = x == x'
+matchDecl x (AffineDecl _ x' _) = x == x'
+matchDecl _ _ = False
+
+matchUsage :: Decl -> Bool
+matchUsage UsageDecl = True
+matchUsage _ = False
 
 ------------------
 -- Type Checker --
@@ -90,15 +104,32 @@ tc (App e1 e2) sc = do
 tc (Abs x t e) s = do
   s' <- new
   edge s' P s
-  sink s' D $ Decl x t
-  t' <- tc e s'
-  return $ FunT t t'
+  case t of
+    (AffineT t') -> do
+      s'' <- new
+      sink s' D $ AffineDecl s'' x t'
+      t'' <- tc e s'
+      return $ FunT t t''
+    _ -> do
+      sink s' D $ Decl x t
+      t' <- tc e s'
+      return $ FunT t t'
 tc (Ident x) s = do
-  ds <- query s re pShortest (matchDecl x) <&> map projTy
+  ds <- query s re pShortest (matchDecl x)
   case ds of
     []  -> err "No matching declarations found"
-    [t] -> return t
+    [(Decl _ t)] -> return t
+    [(AffineDecl s' _ t)] -> do
+      ds' <- query s' reU pShortest (matchUsage)
+      case ds' of
+        [] -> do
+          sink s' U UsageDecl
+          return t
+        _ -> err "Affine variable already used once"
     _   -> err "BUG: Multiple declarations found" -- cannot happen for STLC
+-- tc (Let x t e1 e2) s = do
+tc _ _ = do
+  err "Not implemented yet"
 
 
 -- Tie it all together
