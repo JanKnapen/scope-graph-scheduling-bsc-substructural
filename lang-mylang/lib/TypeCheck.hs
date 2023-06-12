@@ -22,6 +22,7 @@ data Label
 data Decl
   = Decl String Type          -- Variable declaration
   | AffineDecl Sc String Type -- Affine Variable declaration
+  | LinearDecl Sc String Type
   | UsageDecl
   deriving (Eq)
 
@@ -29,10 +30,8 @@ data Decl
 instance Show Decl where
   show (Decl x t) = x ++ " : " ++ show t
   show (AffineDecl s x t) = "Affine with scope (" ++ show s ++ ") " ++ x ++ " : " ++ show t
+  show (LinearDecl s x t) = "Linear with scope (" ++ show s ++ ") " ++ x ++ " : " ++ show t
   show UsageDecl = "Usage"
-
--- projTy :: Decl -> Type
--- projTy (Decl _ t) = t
 
 -- Scope Graph Library Convenience
 edge :: Scope Sc Label Decl < f => Sc -> Label -> Sc -> Free f ()
@@ -48,9 +47,6 @@ sink = S.sink @_ @Label @Decl
 re :: RE Label
 re = Dot (Star $ Atom P) $ Atom D
 
-reU :: RE Label
-reU = Atom U
-
 -- Path order based on length
 pShortest :: PathOrder Label Decl
 pShortest p1 p2 = lenRPath p1 < lenRPath p2
@@ -59,11 +55,8 @@ pShortest p1 p2 = lenRPath p1 < lenRPath p2
 matchDecl :: String -> Decl -> Bool
 matchDecl x (Decl x' _) = x == x'
 matchDecl x (AffineDecl _ x' _) = x == x'
+matchDecl x (LinearDecl _ x' _) = x == x'
 matchDecl _ _ = False
-
-matchUsage :: Decl -> Bool
-matchUsage UsageDecl = True
-matchUsage _ = False
 
 ------------------
 -- Type Checker --
@@ -98,16 +91,23 @@ tc (App e1 e2) sc = do
   t1 <- tc e1 sc
   t2 <- tc e2 sc
   case t1 of
-    (FunT t t') | t == t2 -> return t'
-    (FunT t _)            -> err $ "Expected argument of type '" ++ show t ++ "' got '" ++ show t2 ++ "'"
-    t                     -> err $ "Expected arrow type, got '" ++ show t ++ "'"
+    (FunT (LinearT t) t') | t == t2 -> return t'
+    (FunT (AffineT t) t') | t == t2 -> return t'
+    (FunT t t')           | t == t2 -> return t'
+    (FunT t _)                      -> err $ "Expected argument of type '" ++ show t ++ "' got '" ++ show t2 ++ "'"
+    t                               -> err $ "Expected arrow type, got '" ++ show t ++ "'"
 tc (Abs x t e) s = do
-  s' <- new
+  s' <- new 
   edge s' P s
   case t of
     (AffineT t') -> do
       s'' <- new
       sink s' D $ AffineDecl s'' x t'
+      t'' <- tc e s'
+      return $ FunT t t''
+    (LinearT t') -> do
+      s'' <- new
+      sink s' D $ LinearDecl s'' x t'
       t'' <- tc e s'
       return $ FunT t t''
     _ -> do
@@ -120,20 +120,54 @@ tc (Ident x) s = do
     []  -> err "No matching declarations found"
     [(Decl _ t)] -> return t
     [(AffineDecl s' _ t)] -> do
-      ds' <- query s' reU pShortest (matchUsage)
-      case ds' of
-        [] -> do
-          sink s' U UsageDecl
-          return t
-        _ -> err "Affine variable already used once"
+      sink s' U UsageDecl
+      return t
+    [(LinearDecl s' _ t)] -> do
+      sink s' U UsageDecl
+      return t
     _   -> err "BUG: Multiple declarations found" -- cannot happen for STLC
 -- tc (Let x t e1 e2) s = do
 tc _ _ = do
   err "Not implemented yet"
 
+isLinearVariable :: Graph Label Decl -> Decl -> Bool
+isLinearVariable g (LinearDecl s _ _) =
+  let usages = [ (l,d) | (l,d) <- sinksOf g s, l == U, d == UsageDecl ]
+  in (length usages) == 1
+isLinearVariable _ _ = False
+
+isAffineVariable :: Graph Label Decl -> Decl -> Bool
+isAffineVariable g (AffineDecl s _ _) =
+  let usages = [ (l,d) | (l,d) <- sinksOf g s, l == U, d == UsageDecl ]
+  in (length usages) <= 1
+isAffineVariable _ _ = False
+
+isLinearDecl :: Decl -> Bool
+isLinearDecl (LinearDecl _ _ _) = True
+isLinearDecl _ = False
+
+isAffineDecl :: Decl -> Bool
+isAffineDecl (AffineDecl _ _ _) = True
+isAffineDecl _ = False
+
+isSubstructuralScope :: Graph Label Decl -> Sc -> Bool
+isSubstructuralScope g s = 
+  let linearVariables = [ d | (l, d) <- sinksOf g s, l == D, isLinearDecl d ]
+      affineVariables = [ d | (l, d) <- sinksOf g s, l == D, isAffineDecl d ]
+  in (all (\d -> isLinearVariable g d) linearVariables) && (all (\d -> isAffineVariable g d) affineVariables)
+
+handleSubstructuralTypes :: Either String (Type, Graph Label Decl) -> Either String (Type, Graph Label Decl)
+handleSubstructuralTypes result = case result of
+  Left err -> Left err
+  Right (t, g) -> 
+    let scopes_ = [0..(scopes g)]
+    in if all (\sc -> isSubstructuralScope g sc) scopes_
+      then Right (t, g)
+      else Left "Substructural error"
 
 -- Tie it all together
 runTC :: Expr -> Either String (Type, Graph Label Decl)
-runTC e = un
+runTC e = handleSubstructuralTypes
+        $ un
         $ handle hErr
         $ handle_ hScope (tc e 0) emptyGraph
