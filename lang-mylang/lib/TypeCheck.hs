@@ -19,19 +19,24 @@ data Label
   | U -- Variable Usage
   deriving (Show, Eq)
 
+data Symbol
+  = Sym
+
+instance Eq Symbol where
+  (==) _ _ = False
+
 data Decl
   = Decl String Type          -- Variable declaration
   | AffineDecl Sc String Type -- Affine Variable declaration
   | LinearDecl Sc String Type
-  | UsageDecl
+  | UsageDecl Symbol
   deriving (Eq)
-
 
 instance Show Decl where
   show (Decl x t) = x ++ " : " ++ show t
   show (AffineDecl s x t) = "Affine with scope (" ++ show s ++ ") " ++ x ++ " : " ++ show t
   show (LinearDecl s x t) = "Linear with scope (" ++ show s ++ ") " ++ x ++ " : " ++ show t
-  show UsageDecl = "Usage"
+  show (UsageDecl _) = "Usage"
 
 -- Scope Graph Library Convenience
 edge :: Scope Sc Label Decl < f => Sc -> Label -> Sc -> Free f ()
@@ -120,25 +125,29 @@ tc (Ident x) s = do
     []  -> err "No matching declarations found"
     [(Decl _ t)] -> return t
     [(AffineDecl s' _ t)] -> do
-      sink s' U UsageDecl
+      sink s' U $ UsageDecl Sym
       return t
     [(LinearDecl s' _ t)] -> do
-      sink s' U UsageDecl
+      sink s' U $ UsageDecl Sym
       return t
     _   -> err "BUG: Multiple declarations found" -- cannot happen for STLC
 -- tc (Let x t e1 e2) s = do
 tc _ _ = do
   err "Not implemented yet"
 
+isUsageDecl :: Decl -> Bool
+isUsageDecl (UsageDecl _) = True
+isUsageDecl _ = False
+
 isLinearVariable :: Graph Label Decl -> Decl -> Bool
 isLinearVariable g (LinearDecl s _ _) =
-  let usages = [ (l,d) | (l,d) <- sinksOf g s, l == U, d == UsageDecl ]
+  let usages = [ (l,d) | (l,d) <- sinksOf g s, l == U, isUsageDecl d ]
   in (length usages) == 1
 isLinearVariable _ _ = False
 
 isAffineVariable :: Graph Label Decl -> Decl -> Bool
 isAffineVariable g (AffineDecl s _ _) =
-  let usages = [ (l,d) | (l,d) <- sinksOf g s, l == U, d == UsageDecl ]
+  let usages = [ (l,d) | (l,d) <- sinksOf g s, l == U, isUsageDecl d ]
   in (length usages) <= 1
 isAffineVariable _ _ = False
 

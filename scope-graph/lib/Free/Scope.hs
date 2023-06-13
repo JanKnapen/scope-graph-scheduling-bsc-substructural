@@ -152,11 +152,9 @@ addSink g s l d =
        else case sinksOf g s of
          [] -> Right $ rawAdd g s l d
          sinks ->
-          -- TODO: find solution for this
-          Right $ rawAdd g s l d
-          --  if (l,d) `elem` sinks
-          --  then Left $ "Error: there is already a declaration " ++ show d ++ " at label " ++ show l
-          --  else Right $ rawAdd g s l d
+           if (l,d) `elem` sinks
+           then Left $ "Error: there is already a declaration " ++ show d ++ " at label " ++ show l
+           else Right $ rawAdd g s l d
   else Left $ "Invalid scope: " ++ show s
   where
     rawAdd g s l d =
