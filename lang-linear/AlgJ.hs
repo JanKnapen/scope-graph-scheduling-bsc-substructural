@@ -48,8 +48,14 @@ tc (Ident x) ctx =
   in case scheme of
     (Just s) -> do
       t <- instantiate s
-      let ctx' = filter (\(k, v) -> k /= x) ctx
-      return (t, ctx')
+      case t of
+        (Term "Linear" [t']) -> do
+          let ctx' = filter (\(k, v) -> k /= x) ctx
+          return (t', ctx')
+        (Term "Affine" [t']) -> do
+          let ctx' = filter (\(k, v) -> k /= x) ctx
+          return (t', ctx')
+        (Term _ _) -> return (t, ctx)
     Nothing  -> err $ "Variable " ++ x ++ " not found."
 tc (App e1 e2) ctx = do
   (t1, ctx') <- tc e1 ctx
@@ -57,21 +63,59 @@ tc (App e1 e2) ctx = do
   t' <- exists
   equals t1 $ funT t2 t'
   return (t', ctx'')
-tc (Abs x e) ctx = do
-  t1  <- exists
-  let ctx_no_x = filter (\(k, v) -> k /= x) ctx
-  let ctx_x = filter (\(k, v) -> k == x) ctx
-  (t2, ctx_no_x') <- tc e $ (x, Scheme [] t1) : ctx_no_x
-  let scheme = lookup x ctx_no_x'
-  case scheme of
-    (Just s) -> err $ "Lambda variable " ++ x ++ " not used."
-    Nothing -> do
-      let ctx' = ctx_no_x' ++ ctx_x
-      return $ (funT t1 t2, ctx')
-tc (Let x e1 e2) ctx = do
-  (t, ctx') <- tc e1 ctx
-  let s  = generalize ctx' t
-  tc e2 ((x, s): ctx')
+tc (Abs x t e) ctx = do
+  case t of
+    (Term "Linear" [t']) -> do
+      let ctx_no_x = filter (\(k, v) -> k /= x) ctx
+      let ctx_x = filter (\(k, v) -> k == x) ctx
+      (t2, ctx_no_x') <- tc e $ (x, Scheme [] t) : ctx_no_x
+      let scheme = lookup x ctx_no_x'
+      case scheme of
+        (Just s) -> err $ "Lambda linear variable " ++ x ++ " not used."
+        Nothing -> do
+          let ctx' = ctx_no_x' ++ ctx_x
+          return $ (funT t' t2, ctx')
+    (Term "Affine" [t']) -> do
+      let ctx_no_x = filter (\(k, v) -> k /= x) ctx
+      let ctx_x = filter (\(k, v) -> k == x) ctx
+      let ctx' = (x, Scheme [] t) : ctx_no_x
+      (t2, ctx'') <- tc e ctx'
+      let ctx''_no_x = filter (\(k, v) -> k /= x) ctx''
+      let ctx''' = ctx''_no_x ++ ctx_x
+      return $ (funT t' t2, ctx''')
+    (Term _ _) -> do
+      (t2, ctx') <- tc e $ (x, Scheme [] t) : ctx
+      return $ (funT t t2, ctx')
+tc (Let x t e1 e2) ctx = do
+  (t', ctx') <- tc e1 ctx
+  case t of
+    (Term "Linear" [t'']) -> do
+      equals t' t''
+      let ctx'_no_x = filter (\(k, v) -> k /= x) ctx'
+      let ctx'_x = filter (\(k, v) -> k == x) ctx'
+      let s = generalize ctx'_no_x t
+      (t''', ctx'_no_x') <- tc e2 ((x, s) : ctx'_no_x)
+      let scheme = lookup x ctx'_no_x'
+      case scheme of
+        (Just s) -> err $ "Let linear variable " ++ x ++ " no used."
+        Nothing -> do
+          let ctx'' = ctx'_no_x' ++ ctx'_x
+          return (t''', ctx'')
+    (Term "Affine" [t'']) -> do
+      equals t' t''
+      let ctx'_no_x = filter (\(k, v) -> k /= x) ctx'
+      let ctx'_x = filter (\(k, v) -> k == x) ctx'
+      let s = generalize ctx'_no_x t
+      let ctx'' = (x, s) : ctx'_no_x
+      (t''', ctx''') <- tc e2 (ctx'')
+      let ctx'''_no_x = filter (\(k, v) -> k /= x) ctx'''
+      let ctx'' = ctx'''_no_x ++ ctx'_x
+      return (t''', ctx'')
+    (Term _ _) -> do
+      equals t t'
+      let s = generalize ctx' t
+      (t'', ctx'') <- tc e2 ((x, s) : ctx')
+      return (t'', ctx'')
 
 -- Running the type checker
 runTC :: MLy -> Either String (UMap Int, Scheme)
@@ -89,5 +133,4 @@ runTC e =
   in case x of
     Left s -> Left s
     Right (Left (UnificationError t1 t2)) -> Left $ "Unification error: " ++ show t1 ++ " != " ++ show t2
-    Right (Right ((t, []), u)) -> Right (u, generalize [] $ explicate u t)
-    Right (Right ((t, ctx'), u)) -> Left $ "Linear error, variables not used: " ++ show ctx'
+    Right (Right ((t, _), u)) -> Right (u, generalize [] $ explicate u t)

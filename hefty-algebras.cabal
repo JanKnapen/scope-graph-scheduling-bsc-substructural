@@ -218,7 +218,6 @@ executable linear
     hs-source-dirs:     lang-linear
     default-language:   Haskell2010
     other-modules:      Syntax
-                        HMScope
                         AlgJ
     default-extensions: TypeApplications
                         TypeOperators
