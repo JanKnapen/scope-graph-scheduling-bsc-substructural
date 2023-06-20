@@ -7,19 +7,30 @@ import TypeCheck (runTC, Label, Decl)
 import qualified System.Exit as Exit
 import Free.Scope (Graph)
 
-runTCTest :: Expr -> IO (Type, Graph Label Decl) 
-runTCTest = either assertFailure return . runTC
+runTCTest :: Expr -> IO (Either String (Type, Graph Label Decl))
+runTCTest = return . runTC
 
 -- Define your test cases like the following
 testApplicationPlus :: IO ()
 testApplicationPlus = do
-  t <- runTCTest $ App (Abs "x" NumT (Plus (Ident "x") (Ident "x"))) (Num 21)
-  assertEqual "Incorrect type" NumT $ fst t
+  result <- runTCTest $ App (Abs "x" NumT (Plus (Ident "x") (Ident "x"))) (Num 21)
+  case result of
+    Right (t, _) -> assertEqual "Incorrect type" NumT t
+    Left e -> assertFailure "Expected type"
+
+testLambdaLinearError :: IO ()
+testLambdaLinearError = do
+  result <- runTCTest $ Abs "x" (LinearT NumT) (Plus (Ident "x") (Ident "x"))
+  case result of
+    Right (_, _) -> assertFailure "Expected linear typing error"
+    Left _ -> return ()
 
 tests :: Test
 tests = TestList
     -- Add your test cases to this list
-    [ "testApplicationPlus" ~: testApplicationPlus ]
+    [ "testApplicationPlus" ~: testApplicationPlus
+    , "testLambdaLinearError" ~: testLambdaLinearError 
+    ]
 
 main :: IO ()
 main = do

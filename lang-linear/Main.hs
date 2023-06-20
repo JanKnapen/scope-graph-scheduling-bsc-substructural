@@ -5,7 +5,7 @@ import qualified AlgJ as J
 
 example :: MLy
 -- IDENT TESTS
--- example = Let "x" numT (Num 10) (Plus (Ident "x") (Ident "x"))
+example = Let "x" numT (Num 10) (Plus (Ident "x") (Ident "x"))
 -- example = Let "x" (linearT numT) (Num 10) (Plus (Ident "x") (Ident "x"))
 -- example = Let "x" (affineT numT) (Num 10) (Plus (Ident "x") (Ident "x"))
 
@@ -65,8 +65,18 @@ example_linear_lambda_not_used = Let "f" numT
                                   (Num 10)
 
 main :: IO ()
-main = do
-    print $ snd <$> J.runTC example
+main =
+  -- print $ snd <$> J.runTC example
+  case J.runTC example of
+    Left e -> putStrLn e
+    Right (_, scheme) -> do
+      case scheme of
+        numT -> putStrLn "Result is of type Num"
+        _ -> print scheme
+  -- case result of
+  --   Scheme [] t -> putStrLn "Incorrect"
+  --   _ -> putStrLn "Incorrect"
+    -- print $ snd <$> J.runTC example
     -- print $ snd <$> J.runTC example_linear2
     -- print $ snd <$> J.runTC example_linear3
     -- print $ snd <$> J.runTC example_linear4

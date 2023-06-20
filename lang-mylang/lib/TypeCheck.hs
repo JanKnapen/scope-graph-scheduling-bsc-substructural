@@ -131,7 +131,26 @@ tc (Ident x) s = do
       sink s' U $ UsageDecl Sym
       return t
     _   -> err "BUG: Multiple declarations found" -- cannot happen for STLC
--- tc (Let x t e1 e2) s = do
+tc (Let x t e1 e2) s = do
+  s' <- new
+  edge s' P s
+  t1 <- tc e1 s
+  case t of
+    (AffineT t1) -> do
+      s'' <- new
+      sink s' D $ AffineDecl s'' x t1
+      t'' <- tc e2 s'
+      return t''
+    (LinearT t1) -> do
+      s'' <- new
+      sink s' D $ LinearDecl s'' x t1
+      t'' <- tc e2 s'
+      return t''
+    t1 -> do
+      sink s' D $ Decl x t1
+      t' <- tc e2 s'
+      return t'
+    _ -> err $ "Let specified type " ++ show t ++ " != expression type " ++ show t1
 tc _ _ = do
   err "Not implemented yet"
 

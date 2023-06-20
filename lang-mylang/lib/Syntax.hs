@@ -27,6 +27,34 @@ instance Show Type where
   show (LinearT t) = "(Linear Type: " ++ show t ++ ")"
 
 example :: Expr
-example = App (Abs "x" (AffineT NumT) (Plus (Ident "x") (Ident "x"))) (Num 21)
+-- example = App (Abs "x" (AffineT NumT) (Plus (Ident "x") (Ident "x"))) (Num 21)
 -- example :: Expr
 -- example = App (Abs "x" (AffineT NumT) (Plus (Ident "x") (Num 20))) (Num 21)
+
+-- ERROR
+example = Abs "x" (LinearT NumT) (Plus (Ident "x") (Ident "x"))
+-- example = Let "x" (LinearT NumT) (Num 1) (
+--   Let "x" (LinearT NumT) (Num 2) (Plus (Ident "x") (Ident "x"))
+--   )
+-- example = Let "x" (LinearT NumT) (Num 1) (
+--   Let "x" (LinearT NumT) (Num 2) (Ident "x")
+--   )
+-- example = Let "f" (LinearT (FunT NumT NumT)) (
+--   Abs "x" (LinearT NumT) (
+--     Let "x" (LinearT NumT) (Num 1) (
+--       Plus (Ident "x") (Ident "x")
+--     )
+--   )) (
+--   App (Ident "f") (Num 2)
+--   )
+
+-- NO ERROR
+-- example = Let "x" (LinearT NumT) (Num 1) (
+--   Let "f" (LinearT (FunT NumT NumT)) 
+--   (
+--     Abs "x" (LinearT NumT) (Plus (Ident "x") (Num 1))
+--     ) 
+--     (
+--       App (Ident "f") (Ident "x")
+--       )
+--   )
