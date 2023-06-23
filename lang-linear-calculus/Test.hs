@@ -31,7 +31,7 @@ runTCFailureUnificationTest e = case J.runTC e of
     | "Unification error" `isPrefixOf` errorMessage -> return ()
     | otherwise -> assertFailure "Expected unification error"
 
--- Normal typing rules
+-- Non-substructural typing rules
 -- Base
 testBase1 = runTCSuccessTest (Num 0) numT
 testBase2 = runTCFailureTest (Ident "x") "Expected no matching declarations found" "Variable x not found."
@@ -325,7 +325,7 @@ affineTests = TestList
 
 main :: IO ()
 main = do
-    print "Normal tests"
+    print "Non-substructural tests"
     result <- runTestTT tests
     print result
     print "Linear tests"
