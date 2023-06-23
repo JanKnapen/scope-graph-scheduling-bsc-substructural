@@ -189,7 +189,7 @@ handleSubstructuralTypes result = case result of
     let scopes_ = [0..(scopes g)]
     in if all (\sc -> isSubstructuralScope g sc) scopes_
       then Right (t, g)
-      else Left "Substructural error"
+      else Left "Substructural typing error"
 
 -- Tie it all together
 runTC :: Expr -> Either String (Type, Graph Label Decl)
