@@ -85,11 +85,11 @@ tc (Plus e1 e2) sc = do
   t2 <- tc e2 sc
   case (t1, t2) of
     (NumT, NumT) -> return NumT
-    (t1', NumT)  -> err $ "Expected left operand of plus expression to have type 'num', got '" ++ 
+    (t1', NumT)  -> err $ "Expected left operand of plus expression to have type 'NumT', got '" ++ 
                           show t1' ++ "'"
-    (NumT, t2')  -> err $ "Expected right operand of plus expression to have type 'num', got '" ++ 
+    (NumT, t2')  -> err $ "Expected right operand of plus expression to have type 'NumT', got '" ++ 
                           show t2' ++ "'"
-    (t1', t2')   -> err $ "Expected operands of plus expression to have type 'num', got '" ++ 
+    (t1', t2')   -> err $ "Expected operands of plus expression to have type 'NumT', got '" ++ 
                           show t1' ++ "' and '" ++
                           show t2' ++ "'"
 tc (App e1 e2) sc = do
@@ -136,23 +136,21 @@ tc (Let x t e1 e2) s = do
   edge s' P s
   t1 <- tc e1 s
   case t of
-    (AffineT t1) -> do
+    (AffineT t') | t' == t1 -> do
       s'' <- new
       sink s' D $ AffineDecl s'' x t1
       t'' <- tc e2 s'
       return t''
-    (LinearT t1) -> do
+    (LinearT t') | t' == t1 -> do
       s'' <- new
       sink s' D $ LinearDecl s'' x t1
       t'' <- tc e2 s'
       return t''
-    t1 -> do
+    t' | t' == t1 -> do
       sink s' D $ Decl x t1
       t' <- tc e2 s'
       return t'
-    _ -> err $ "Let specified type " ++ show t ++ " != expression type " ++ show t1
-tc _ _ = do
-  err "Not implemented yet"
+    _ -> err $ "Expected Let of type '" ++ show t ++ "' got '" ++ show t1 ++ "'"
 
 isUsageDecl :: Decl -> Bool
 isUsageDecl (UsageDecl _) = True

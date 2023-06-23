@@ -21,10 +21,10 @@ data Expr
   deriving (Eq, Show)
 
 instance Show Type where
-  show NumT = "num"
-  show (FunT ti to) = "(" ++ show ti ++ " -> " ++ show to ++ ")"
-  show (AffineT t) = "(Affine Type: " ++ show t ++ ")"
-  show (LinearT t) = "(Linear Type: " ++ show t ++ ")"
+  show NumT = "NumT"
+  show (FunT ti to) = "(FunT " ++ show ti ++ " " ++ show to ++ ")"
+  show (AffineT t) = "(AffineT " ++ show t ++ ")"
+  show (LinearT t) = "(LinearT " ++ show t ++ ")"
 
 example :: Expr
 -- example = App (Abs "x" (AffineT NumT) (Plus (Ident "x") (Ident "x"))) (Num 21)
@@ -32,7 +32,17 @@ example :: Expr
 -- example = App (Abs "x" (AffineT NumT) (Plus (Ident "x") (Num 20))) (Num 21)
 
 -- ERROR
-example = Abs "x" (LinearT NumT) (Plus (Ident "x") (Ident "x"))
+example = (App 
+              (Abs 
+                "f" 
+                (FunT (LinearT NumT) NumT) 
+                (App (Ident "f") (Num 1)) 
+              )
+              (Abs 
+                "x" 
+                (LinearT NumT) 
+                (Plus (Ident "x") (Num 2))
+              ))
 -- example = Let "x" (LinearT NumT) (Num 1) (
 --   Let "x" (LinearT NumT) (Num 2) (Plus (Ident "x") (Ident "x"))
 --   )
