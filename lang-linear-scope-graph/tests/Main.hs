@@ -17,7 +17,7 @@ runTCSuccessTest e t = do
   result <- runTCTest e
   case result of
     Right (t', _) -> assertEqual "Incorrect type" t t'
-    Left e -> assertFailure "Expected type"
+    Left e -> assertFailure $ "Expected type " ++ show t
 
 runTCFailureTest :: Expr -> String -> String -> IO ()
 runTCFailureTest expression failureMessage expectedErrorMessage = do

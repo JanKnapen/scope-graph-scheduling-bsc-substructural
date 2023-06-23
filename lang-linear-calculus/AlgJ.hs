@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant flip" #-}
-module AlgJ where
+module AlgJ (Scheme(..), tc, runTC, generalize) where
 
 import Data.List
 import qualified Data.Map as Map
@@ -60,9 +60,18 @@ tc (Ident x) ctx =
 tc (App e1 e2) ctx = do
   (t1, ctx') <- tc e1 ctx
   (t2, ctx'') <- tc e2 ctx'
-  t' <- exists
-  equals t1 $ funT t2 t'
-  return (t', ctx'')
+  case t1 of
+    (Term "->" [ti, to]) -> case ti of
+      (Term "Linear" [t']) -> do
+        equals t' t2
+        return (to, ctx'')
+      (Term "Affine" [t']) -> do
+        equals t' t2
+        return (to, ctx'')
+      _ -> do
+        equals ti t2
+        return (to, ctx'')
+    _ -> err "Unification error"
 tc (Abs x t e) ctx = do
   case t of
     (Term "Linear" [t']) -> do

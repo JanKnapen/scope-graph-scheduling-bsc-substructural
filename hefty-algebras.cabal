@@ -162,8 +162,8 @@ executable hm
 
 -- My Language
 
-library mylang-lib
-    hs-source-dirs:     lang-mylang/lib
+library linear-scope-graph-lib
+    hs-source-dirs:     lang-linear-scope-graph/lib
     exposed-modules:    Syntax
                         TypeCheck
     build-depends:      base >=4.14 && <5,
@@ -180,13 +180,13 @@ library mylang-lib
                         -O3
                         -threaded
 
-executable mylang
+executable linear-scope-graph
     main-is:            Main.hs
     build-depends:      base >= 4.14,
                         containers >= 0.6.5.1,
                         transformers >= 0.5.6.2,
-                        mylang-lib
-    hs-source-dirs:     lang-mylang/app
+                        linear-scope-graph-lib
+    hs-source-dirs:     lang-linear-scope-graph/app
     default-language:   Haskell2010
     default-extensions: TypeApplications
                         TypeOperators
@@ -196,7 +196,7 @@ executable mylang
     ghc-options:        -O3
                         -threaded
 
-test-suite mylang-test
+test-suite linear-scope-graph-test
     type:               exitcode-stdio-1.0
     main-is:            Main.hs
     build-depends:      base >= 4.14,
@@ -204,18 +204,18 @@ test-suite mylang-test
                         mtl >= 2.3.1,
                         HUnit ^>= 1.6.1,
                         hefty-algebras,
-                        mylang-lib
-    hs-source-dirs:     lang-mylang/tests
+                        linear-scope-graph-lib
+    hs-source-dirs:     lang-linear-scope-graph/tests
     default-language:   Haskell2010
     other-modules:      
 
-executable linear
+executable linear-calculus
     main-is:            Main.hs
     build-depends:      base >= 4.14,
                         containers >= 0.6.5.1,
                         transformers >= 0.5.6.2,
                         hefty-algebras
-    hs-source-dirs:     lang-linear
+    hs-source-dirs:     lang-linear-calculus
     default-language:   Haskell2010
     other-modules:      Syntax
                         AlgJ
@@ -226,14 +226,14 @@ executable linear
     ghc-options:        -O3
                         -threaded
 
-executable linear-test
+executable linear-calculus-test
     main-is:            Test.hs
     build-depends:      base >= 4.14,
                         containers >= 0.6.5.1,
                         transformers >= 0.5.6.2,
                         HUnit ^>= 1.6.1,
                         hefty-algebras
-    hs-source-dirs:     lang-linear
+    hs-source-dirs:     lang-linear-calculus
     default-language:   Haskell2010
     other-modules:      Syntax
                         AlgJ

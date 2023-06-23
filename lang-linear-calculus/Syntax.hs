@@ -17,13 +17,13 @@ data MLy
 type Ty = Term Int
 
 instance Show Ty where
-  show (Const i) = "α" ++ show i
-  show (Var i) = "α" ++ show i
+  show (Const i) = show i
+  show (Var i) = show i
   show (Term "∀" ts) = "(∀ " ++ unwords (map show (init ts)) ++ ". " ++ show (last ts) ++ ")"
-  show (Term "->" [t1, t2]) = show t1 ++ " -> " ++ show t2
-  show (Term "Num" []) = "Num"
-  show (Term "Linear" [t]) = "Linear " ++ show t
-  show (Term "Affine" [t]) = "Affine " ++ show t
+  show (Term "->" [t1, t2]) = "(FunT " ++ show t1 ++ " " ++ show t2 ++ ")"
+  show (Term "Num" []) = "NumT"
+  show (Term "Linear" [t]) = "(LinearT " ++ show t ++ ")"
+  show (Term "Affine" [t]) = "(AffineT " ++ show t ++ ")"
   show (Term f ts) = "(" ++ f ++ unwords (map show ts) ++ ")"
 
 -- Type construction
